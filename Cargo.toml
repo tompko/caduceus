@@ -1,0 +1,6 @@
+[package]
+name = "caduceus"
+version = "0.1.0"
+authors = ["tompko <tompko@gmail.com>"]
+
+[dependencies]
