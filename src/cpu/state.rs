@@ -23,11 +23,17 @@ pub struct State {
     pub iy: u16,
     pub sp: u16,
     pub pc: u16,
+
+    // Interrupt enable flip-flops
+    pub iff1: bool,
+    pub iff2: bool,
+    pub interrupt_mode: u8,
 }
 
 impl Default for State {
     fn default() -> State {
         State {
+            // TODO - check initial values
             a: 0,
             f: 0,
             b: 0,
@@ -52,6 +58,10 @@ impl Default for State {
             iy: 0,
             sp: 0,
             pc: 0,
+
+            iff1: false,
+            iff2: false,
+            interrupt_mode: 0,
         }
     }
 }
