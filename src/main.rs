@@ -4,7 +4,6 @@ mod cpu;
 mod sms;
 mod vm;
 
-use cartridge::Cartridge;
 use sms::SMS;
 
 fn main() {

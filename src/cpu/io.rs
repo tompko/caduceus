@@ -1,18 +1,18 @@
 use super::super::bus::Bus;
 use super::State;
 
-pub trait In8: Copy {
-    fn read8<B: Bus>(&self, state: &mut State, bus: &mut B) -> u8;
+pub trait Src8: Copy {
+    fn src8(&self, state: &mut State, bus: &mut Bus) -> u8;
 }
 
-pub trait Out8: Copy {
-    fn write8<B: Bus>(&self, state: &mut State, bus: &mut B, value: u8);
+pub trait Dst8: Copy {
+    fn dst8(&self, state: &mut State, bus: &mut Bus, value: u8);
 }
 
-pub trait In16: Copy {
-    fn read16<B: Bus>(&self, state: &mut State, bus: &mut B) -> u16;
+pub trait Src16: Copy {
+    fn src16(&self, state: &mut State, bus: &mut Bus) -> u16;
 }
 
-pub trait Out16: Copy {
-    fn write16<B: Bus>(&self, state: &mut State, bus: &mut B, value: u16);
+pub trait Dst16: Copy {
+    fn dst16(&self, state: &mut State, bus: &mut Bus, value: u16);
 }

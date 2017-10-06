@@ -1,3 +1,4 @@
+use super::io::{Src16, Dst16};
 use super::operations::Operations;
 use super::state::State;
 use super::super::bus::Bus;
@@ -12,13 +13,18 @@ impl<'a> Operations for Executor<'a> {
     fn read_opcode(&mut self) -> u8 {
         let pc = self.0.pc;
         self.0.pc += 1;
-        self.1.read_u8(pc)
+        self.1.read8(pc)
+    }
+
+    fn load16<S: Src16, D: Dst16>(&mut self, dst: D, src: S) {
+        let val = src.src16(self.0, self.1);
+        dst.dst16(self.0, self.1, val);
     }
 
     fn read_extended_opcode(&mut self) -> u8 {
         let pc = self.0.pc;
         self.0.pc += 1;
-        self.1.read_u8(pc)
+        self.1.read8(pc)
     }
 
     fn disable_interrupts(&mut self) {

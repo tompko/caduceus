@@ -1,3 +1,5 @@
+use super::super::bus::Bus;
+
 pub struct State {
     pub a: u8,
     pub f: u8,
@@ -63,5 +65,17 @@ impl Default for State {
             iff2: false,
             interrupt_mode: 0,
         }
+    }
+}
+
+impl State {
+    pub fn next16(&mut self, bus: &mut Bus) -> u16 {
+        let address = self.pc;
+        self.pc = self.pc.wrapping_add(2);
+
+        let lb = bus.read8(address) as u16;
+        let hb = bus.read8(address) as u16;
+
+        (hb << 8) | lb
     }
 }
