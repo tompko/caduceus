@@ -69,13 +69,61 @@ impl Default for State {
 }
 
 impl State {
-    pub fn next16(&mut self, bus: &mut Bus) -> u16 {
+    pub fn bc(&self) -> u16 {
+        ((self.b as u16) << 8) | (self.c as u16)
+    }
+
+    pub fn set_bc(&mut self, val: u16) {
+        self.b = (val >> 8) as u8;
+        self.c = val as u8;
+    }
+
+    pub fn de(&self) -> u16 {
+        ((self.d as u16) << 8) | (self.e as u16)
+    }
+
+    pub fn set_de(&mut self, val: u16) {
+        self.d = (val >> 8) as u8;
+        self.e = val as u8;
+    }
+
+    pub fn hl(&self) -> u16 {
+        ((self.h as u16) << 8) | (self.l as u16)
+    }
+
+    pub fn set_hl(&mut self, val: u16) {
+        self.h = (val >> 8) as u8;
+        self.l = val as u8;
+    }
+
+    pub fn next8(&mut self, bus: &Bus) -> u8 {
+        let addr = self.pc;
+        self.pc = self.pc.wrapping_add(1);
+
+        bus.read8(addr)
+    }
+
+    pub fn next16(&mut self, bus: &Bus) -> u16 {
         let address = self.pc;
         self.pc = self.pc.wrapping_add(2);
 
         let lb = bus.read8(address) as u16;
-        let hb = bus.read8(address) as u16;
+        let hb = bus.read8(address+1) as u16;
 
         (hb << 8) | lb
+    }
+
+    pub fn push8(&mut self, bus: &mut Bus, val: u8) {
+        self.sp = self.sp.wrapping_sub(1);
+
+        bus.write8(self.sp, val);
+    }
+
+    pub fn push16(&mut self, bus: &mut Bus, val: u16) {
+        let lsb = val as u8;
+        let msb = (val >> 8) as u8;
+
+        self.push8(bus, msb);
+        self.push8(bus, lsb);
     }
 }

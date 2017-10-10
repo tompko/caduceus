@@ -1,4 +1,5 @@
-use super::io::{Src16, Dst16};
+use super::io::{Src8, Src16, Dst8, Dst16};
+use super::operands::{Address, PortAddress};
 use super::operations::Operations;
 use super::state::State;
 use super::super::bus::Bus;
@@ -16,15 +17,47 @@ impl<'a> Operations for Executor<'a> {
         self.1.read8(pc)
     }
 
+    fn read_extended_opcode(&mut self) -> u8 {
+        let pc = self.0.pc;
+        self.0.pc += 1;
+        self.1.read8(pc)
+    }
+
+    fn load8<S: Src8, D: Dst8>(&mut self, dst: D, src: S) {
+        let val = src.src8(self.0, self.1);
+        dst.dst8(self.0, self.1, val);
+    }
+
     fn load16<S: Src16, D: Dst16>(&mut self, dst: D, src: S) {
         let val = src.src16(self.0, self.1);
         dst.dst16(self.0, self.1, val);
     }
 
-    fn read_extended_opcode(&mut self) -> u8 {
-        let pc = self.0.pc;
-        self.0.pc += 1;
-        self.1.read8(pc)
+    fn push16<S: Src16>(&mut self, src: S) {
+        let val = src.src16(self.0, self.1);
+        self.0.push16(self.1, val);
+    }
+
+    fn ldi(&mut self) {
+        // (DE) ← (HL), DE ← DE + 1, HL ← HL + 1, BC ← BC – 1
+        let src_addr = self.0.hl();
+        let val = self.1.read8(src_addr);
+        let dst_addr = self.0.de();
+        let bc = self.0.bc();
+
+        self.1.write8(dst_addr, val);
+
+        self.0.set_de(dst_addr.wrapping_add(1));
+        self.0.set_hl(src_addr.wrapping_add(1));
+        self.0.set_bc(bc.wrapping_sub(1));
+    }
+
+    fn ldir(&mut self) {
+        self.ldi();
+
+        if self.0.bc() != 0 {
+            self.0.pc = self.0.pc.wrapping_sub(2);
+        }
     }
 
     fn disable_interrupts(&mut self) {
@@ -34,5 +67,31 @@ impl<'a> Operations for Executor<'a> {
 
     fn set_interrupt_mode(&mut self, interrupt_mode: u8) {
         self.0.interrupt_mode = interrupt_mode;
+    }
+
+    fn jump(&mut self, addr: Address) {
+        let addr = addr.indirect(self.0, self.1);
+        println!("Jumping to {:04x}", addr);
+        self.0.pc = addr;
+    }
+
+    fn call(&mut self, addr: Address) {
+        let pc = self.0.pc;
+        let lsb = (pc & 0xff) as u8;
+        let msb = (pc >> 8) as u8;
+
+        self.0.push8(self.1, msb);
+        self.0.push8(self.1, lsb);
+
+        let addr = addr.indirect(self.0, self.1);
+
+        self.0.pc = addr;
+    }
+
+    fn out<S: Src8>(&mut self, addr: PortAddress, src: S) {
+        let val = src.src8(self.0, self.1);
+        let addr = addr.indirect(self.0, self.1);
+
+        self.1.out8(addr, val);
     }
 }
