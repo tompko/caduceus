@@ -38,6 +38,11 @@ impl<'a> Operations for Executor<'a> {
         self.0.push16(self.1, val);
     }
 
+    fn pop16<D: Dst16>(&mut self, dst: D) {
+        let val = self.0.pop16(self.1);
+        dst.dst16(self.0, self.1, val);
+    }
+
     fn ldi(&mut self) {
         // (DE) ← (HL), DE ← DE + 1, HL ← HL + 1, BC ← BC – 1
         let src_addr = self.0.hl();
@@ -71,21 +76,22 @@ impl<'a> Operations for Executor<'a> {
 
     fn jump(&mut self, addr: Address) {
         let addr = addr.indirect(self.0, self.1);
-        println!("Jumping to {:04x}", addr);
         self.0.pc = addr;
     }
 
     fn call(&mut self, addr: Address) {
-        let pc = self.0.pc;
-        let lsb = (pc & 0xff) as u8;
-        let msb = (pc >> 8) as u8;
-
-        self.0.push8(self.1, msb);
-        self.0.push8(self.1, lsb);
-
         let addr = addr.indirect(self.0, self.1);
 
+        let pc = self.0.pc;
+
+        self.0.push16(self.1, pc);
+
         self.0.pc = addr;
+    }
+
+    fn ret(&mut self) {
+        let pc = self.0.pop16(self.1);
+        self.0.pc = pc;
     }
 
     fn out<S: Src8>(&mut self, addr: PortAddress, src: S) {

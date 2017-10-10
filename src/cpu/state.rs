@@ -119,11 +119,25 @@ impl State {
         bus.write8(self.sp, val);
     }
 
+    pub fn pop8(&mut self, bus: &mut Bus) -> u8 {
+        let val = bus.read8(self.sp);
+        self.sp = self.sp.wrapping_add(1);
+
+        val
+    }
+
     pub fn push16(&mut self, bus: &mut Bus, val: u16) {
         let lsb = val as u8;
         let msb = (val >> 8) as u8;
 
         self.push8(bus, msb);
         self.push8(bus, lsb);
+    }
+
+    pub fn pop16(&mut self, bus: &mut Bus) -> u16 {
+        let lsb = self.pop8(bus) as u16;
+        let msb = self.pop8(bus) as u16;
+
+        (msb << 8) | lsb
     }
 }
