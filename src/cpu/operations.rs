@@ -1,5 +1,5 @@
 use super::io::{Src8, Src16, Dst8, Dst16};
-use super::operands::{Register8, Register16, Immediate8, Immediate16, Address, PortAddress};
+use super::operands::{Register8, Register16, Immediate8, Immediate16, Address, PortAddress, Condition, condition};
 
 pub trait Operations {
     fn read_opcode(&mut self) -> u8;
@@ -13,11 +13,16 @@ pub trait Operations {
     fn ldi(&mut self);
     fn ldir(&mut self);
 
+    fn cp<S: Src8>(&mut self, src: S);
+
     fn disable_interrupts(&mut self);
     fn set_interrupt_mode(&mut self, interrupt_mode: u8);
 
-    fn jump(&mut self, addr: Address);
-    fn call(&mut self, addr: Address);
+    fn inc16(&mut self, r: Register16);
+
+    fn jump<C: Condition>(&mut self, addr: Address, cond: C);
+    fn jr<C: Condition>(&mut self, cond: C);
+    fn call<C: Condition>(&mut self, addr: Address, cond: C);
     fn ret(&mut self);
 
     fn out<S: Src8>(&mut self, addr: PortAddress, src: S);
@@ -33,8 +38,10 @@ pub fn visit<O: Operations>(mut ops: O) {
         // 8-bit load group
         0x3e => ops.load8(A, Immediate8),
         0x06 => ops.load8(B, Immediate8),
+        0x0a => ops.load8(A, Address::BC),
         0x0e => ops.load8(C, Immediate8),
         0x16 => ops.load8(D, Immediate8),
+        0x1a => ops.load8(A, Address::DE),
         0x1e => ops.load8(E, Immediate8),
         0x26 => ops.load8(H, Immediate8),
         0x2e => ops.load8(L, Immediate8),
@@ -102,13 +109,37 @@ pub fn visit<O: Operations>(mut ops: O) {
         0xe1 => ops.pop16(HL),
         0xf1 => ops.pop16(AF),
 
+        // 8-bit arithmetic group
+        0xb8 => ops.cp(B),
+        0xb9 => ops.cp(C),
+        0xba => ops.cp(D),
+        0xbb => ops.cp(E),
+        0xbc => ops.cp(H),
+        0xbd => ops.cp(L),
+        0xbf => ops.cp(A),
+        0xfe => ops.cp(Immediate8),
 
         // General purpose arithmetic and CPU control group
         0xf3 => ops.disable_interrupts(),
 
+        // 16-bit arithmetic group
+        0x03 => ops.inc16(BC),
+        0x13 => ops.inc16(DE),
+        0x23 => ops.inc16(HL),
+        0x33 => ops.inc16(SP),
+
         // jump and call group
-        0xc3 => ops.jump(Address::Direct),
-        0xcd => ops.call(Address::Direct),
+        0xc3 => ops.jump(Address::Direct, ()),
+        0xc2 => ops.jump(Address::Direct, condition::NON_ZERO),
+        0xca => ops.jump(Address::Direct, condition::ZERO),
+        0x18 => ops.jr(()),
+        0x20 => ops.jr(condition::NON_ZERO),
+        0x28 => ops.jr(condition::ZERO),
+        0x30 => ops.jr(condition::NON_CARRY),
+        0x38 => ops.jr(condition::CARRY),
+        0xcc => ops.call(Address::Direct, condition::ZERO),
+        0xc4 => ops.call(Address::Direct, condition::NON_ZERO),
+        0xcd => ops.call(Address::Direct, ()),
         0xc9 => ops.ret(),
 
         // Input and output group

@@ -1,5 +1,5 @@
 use super::io::{Src8, Src16, Dst8, Dst16};
-use super::state::State;
+use super::state::{State, Flags};
 use super::super::bus::Bus;
 
 #[derive(Debug, Clone, Copy)]
@@ -60,7 +60,7 @@ impl Src16 for Register16 {
         use self::Register16::*;
 
         match *self {
-            AF => ((state.a as u16) << 8) | (state.f as u16),
+            AF => ((state.a as u16) << 8) | (state.f.bits() as u16),
             BC => ((state.b as u16) << 8) | (state.c as u16),
             DE => ((state.d as u16) << 8) | (state.e as u16),
             HL => ((state.h as u16) << 8) | (state.l as u16),
@@ -76,7 +76,7 @@ impl Dst16 for Register16 {
         match *self {
             AF => {
                 state.a = (value >> 8) as u8;
-                state.f = value as u8;
+                state.f = Flags::from_bits(value as u8).unwrap();
             }
             BC => {
                 state.b = (value >> 8) as u8;
@@ -120,7 +120,9 @@ pub enum Address {
 
     ZeroPage,
 
-    // HL,
+    BC,
+    DE,
+    HL,
     // IX,
     // IY,
 }
@@ -132,7 +134,18 @@ impl Address {
         match *self {
             Direct => state.next16(bus),
             ZeroPage => state.next8(bus) as u16,
+            BC => state.bc(),
+            DE => state.de(),
+            HL => state.hl(),
         }
+    }
+}
+
+impl Src8 for Address {
+    fn src8(&self, state: &mut State, bus: &mut Bus) -> u8 {
+        let addr = self.indirect(state, bus);
+
+        bus.read8(addr)
     }
 }
 
@@ -150,4 +163,52 @@ impl PortAddress {
             Indirect => state.c,
         }
     }
+}
+
+pub trait Condition {
+    fn check(&self, state: &State) -> bool;
+}
+
+impl Condition for () {
+    fn check(&self, _: &State) -> bool {
+        true
+    }
+}
+
+pub mod condition {
+    #![allow(non_camel_case_types)]
+    use super::{Flags, State, Condition};
+
+    pub struct CARRY;
+
+    impl Condition for CARRY {
+        fn check(&self, state: &State) -> bool {
+            state.f.contains(Flags::C)
+        }
+    }
+
+    pub struct NON_CARRY;
+
+    impl Condition for NON_CARRY {
+        fn check(&self, state: &State) -> bool {
+            !state.f.contains(Flags::C)
+        }
+    }
+
+    pub struct ZERO;
+
+    impl Condition for ZERO {
+        fn check(&self, state: &State) -> bool {
+            state.f.contains(Flags::Z)
+        }
+    }
+
+    pub struct NON_ZERO;
+
+    impl Condition for NON_ZERO {
+        fn check(&self, state: &State) -> bool {
+            !state.f.contains(Flags::Z)
+        }
+    }
+
 }

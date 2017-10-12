@@ -1,8 +1,20 @@
 use super::super::bus::Bus;
 
+bitflags! {
+    #[derive(Default)]
+    pub struct Flags: u8 {
+        const C = 0b00000001;
+        const N = 0b00000010;
+        const P = 0b00000100;
+        const H = 0b00010000;
+        const Z = 0b01000000;
+        const S = 0b10000000;
+    }
+}
+
 pub struct State {
     pub a: u8,
-    pub f: u8,
+    pub f: Flags,
     pub b: u8,
     pub c: u8,
     pub d: u8,
@@ -11,7 +23,7 @@ pub struct State {
     pub l: u8,
 
     pub a_: u8,
-    pub f_: u8,
+    pub f_: Flags,
     pub b_: u8,
     pub c_: u8,
     pub d_: u8,
@@ -37,7 +49,7 @@ impl Default for State {
         State {
             // TODO - check initial values
             a: 0,
-            f: 0,
+            f: Default::default(),
             b: 0,
             c: 0,
             d: 0,
@@ -46,7 +58,7 @@ impl Default for State {
             l: 0,
 
             a_: 0,
-            f_: 0,
+            f_: Default::default(),
             b_: 0,
             c_: 0,
             d_: 0,

@@ -29,6 +29,9 @@ impl Bus {
     }
 
     pub fn out8(&mut self, addr: u8, val: u8) {
-        println!("Write to port {:02x} = {:02x}", addr, val);
+        match addr {
+            0xfd => print!("{}", val as char),
+            _ => println!("Write to port {:02x} = {:02x}", addr, val),
+        }
     }
 }
