@@ -8,12 +8,14 @@ pub struct Executor<'a> (pub &'a mut State, pub &'a mut Bus);
 
 // TODO - timings
 impl<'a> Operations for Executor<'a> {
+    fn dump_state(&self) {
+        println!("PC: {:04x}", self.0.pc);
+    }
+
     fn read_opcode(&mut self) -> u8 {
         let pc = self.0.pc;
         self.0.pc += 1;
         let op = self.1.read8(pc);
-
-        // println!("{:04x} {:02x}", pc, op);
 
         op
     }
@@ -44,6 +46,14 @@ impl<'a> Operations for Executor<'a> {
         dst.dst16(self.0, self.1, val);
     }
 
+    fn ex_de_hl(&mut self) {
+        let de = self.0.de();
+        let hl = self.0.hl();
+
+        self.0.set_hl(de);
+        self.0.set_de(hl);
+    }
+
     fn ldi(&mut self) {
         // (DE) ← (HL), DE ← DE + 1, HL ← HL + 1, BC ← BC – 1
         let src_addr = self.0.hl();
@@ -66,6 +76,38 @@ impl<'a> Operations for Executor<'a> {
         }
     }
 
+    fn xor<S: Src8>(&mut self, src: S) {
+        let val = src.src8(self.0, self.1);
+
+        let r_sign = self.0.r >> 7;
+
+        self.0.a = self.0.a ^ val;
+
+        self.0.f.set(Flags::S, r_sign == 1);
+        self.0.f.set(Flags::H, false);
+        self.0.f.set(Flags::Z, self.0.a == 0);
+        self.0.f.set(Flags::N, false);
+        self.0.f.set(Flags::P, self.0.a.count_ones() % 2 == 0);
+        self.0.f.set(Flags::C, false);
+    }
+
+    fn or<S: Src8>(&mut self, src: S) {
+        let val = src.src8(self.0, self.1);
+
+        let a_sign = self.0.a >> 7;
+        let v_sign = val >> 7;
+        let r_sign = self.0.r >> 7;
+
+        self.0.a = self.0.a | val;
+
+        self.0.f.set(Flags::S, r_sign == 1);
+        self.0.f.set(Flags::H, false);
+        self.0.f.set(Flags::Z, self.0.a == 0);
+        self.0.f.set(Flags::N, false);
+        self.0.f.set(Flags::P, (a_sign == v_sign) && (a_sign != r_sign));
+        self.0.f.set(Flags::C, false);
+    }
+
     fn cp<S: Src8>(&mut self, src:S) {
         let val = src.src8(self.0, self.1);
 
@@ -81,9 +123,27 @@ impl<'a> Operations for Executor<'a> {
         self.0.interrupt_mode = interrupt_mode;
     }
 
+    fn add16(&mut self, d: Register16, s: Register16) {
+        let left = d.src16(self.0, self.1);
+        let right = s.src16(self.0, self.1);
+
+        let (res, overflow) = left.overflowing_add(right);
+
+        d.dst16(self.0, self.1, res);
+
+        self.0.f.set(Flags::H, ((left & 0x0fff) + (right & 0x0fff)) > 0x0fff);
+        self.0.f.set(Flags::N, false);
+        self.0.f.set(Flags::C, overflow);
+    }
+
     fn inc16(&mut self, r: Register16) {
         let val = r.src16(self.0, self.1);
         r.dst16(self.0, self.1, val.wrapping_add(1));
+    }
+
+    fn dec16(&mut self, r: Register16) {
+        let val = r.src16(self.0, self.1);
+        r.dst16(self.0, self.1, val.wrapping_sub(1));
     }
 
     fn jump<C: Condition>(&mut self, addr: Address, cond: C) {

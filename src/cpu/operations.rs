@@ -2,6 +2,8 @@ use super::io::{Src8, Src16, Dst8, Dst16};
 use super::operands::{Register8, Register16, Immediate8, Immediate16, Address, PortAddress, Condition, condition};
 
 pub trait Operations {
+    fn dump_state(&self);
+
     fn read_opcode(&mut self) -> u8;
     fn read_extended_opcode(&mut self) -> u8;
 
@@ -10,15 +12,20 @@ pub trait Operations {
     fn push16<S: Src16>(&mut self, src: S);
     fn pop16<D: Dst16>(&mut self, dst: D);
 
+    fn ex_de_hl(&mut self);
     fn ldi(&mut self);
     fn ldir(&mut self);
 
+    fn xor<S: Src8>(&mut self, src: S);
+    fn or<S: Src8>(&mut self, src: S);
     fn cp<S: Src8>(&mut self, src: S);
 
     fn disable_interrupts(&mut self);
     fn set_interrupt_mode(&mut self, interrupt_mode: u8);
 
+    fn add16(&mut self, d: Register16, s: Register16);
     fn inc16(&mut self, r: Register16);
+    fn dec16(&mut self, r: Register16);
 
     fn jump<C: Condition>(&mut self, addr: Address, cond: C);
     fn jr<C: Condition>(&mut self, cond: C);
@@ -45,6 +52,8 @@ pub fn visit<O: Operations>(mut ops: O) {
         0x1e => ops.load8(E, Immediate8),
         0x26 => ops.load8(H, Immediate8),
         0x2e => ops.load8(L, Immediate8),
+        0x32 => ops.load8(Address::ImmediateExtended, A),
+        0x36 => ops.load8(Address::HL, Immediate8),
         0x40 => ops.load8(B, B),
         0x41 => ops.load8(B, C),
         0x42 => ops.load8(B, D),
@@ -79,6 +88,7 @@ pub fn visit<O: Operations>(mut ops: O) {
         0x63 => ops.load8(H, E),
         0x64 => ops.load8(H, H),
         0x65 => ops.load8(H, L),
+        0x66 => ops.load8(H, Address::HL),
         0x67 => ops.load8(H, A),
         0x68 => ops.load8(L, B),
         0x69 => ops.load8(L, C),
@@ -89,11 +99,12 @@ pub fn visit<O: Operations>(mut ops: O) {
         0x6F => ops.load8(L, A),
         0x78 => ops.load8(A, B),
         0x79 => ops.load8(A, C),
-        0x7A => ops.load8(A, D),
-        0x7B => ops.load8(A, E),
-        0x7E => ops.load8(A, H),
-        0x7D => ops.load8(A, L),
-        0x7F => ops.load8(A, A),
+        0x7a => ops.load8(A, D),
+        0x7b => ops.load8(A, E),
+        0x7c => ops.load8(A, H),
+        0x7d => ops.load8(A, L),
+        0x7e => ops.load8(A, Address::HL),
+        0x7f => ops.load8(A, A),
 
         // 16-bit load group
         0x01 => ops.load16(BC, Immediate16),
@@ -109,7 +120,26 @@ pub fn visit<O: Operations>(mut ops: O) {
         0xe1 => ops.pop16(HL),
         0xf1 => ops.pop16(AF),
 
+        // Exchange, block transfer group
+        0xeb => ops.ex_de_hl(),
+
         // 8-bit arithmetic group
+        0xa8 => ops.xor(B),
+        0xa9 => ops.xor(C),
+        0xaa => ops.xor(D),
+        0xab => ops.xor(E),
+        0xac => ops.xor(H),
+        0xad => ops.xor(L),
+        0xae => ops.xor(Address::HL),
+        0xaf => ops.xor(A),
+        0xb0 => ops.or(B),
+        0xb1 => ops.or(C),
+        0xb2 => ops.or(D),
+        0xb3 => ops.or(E),
+        0xb4 => ops.or(H),
+        0xb5 => ops.or(L),
+        0xb6 => ops.or(Address::HL),
+        0xb7 => ops.or(A),
         0xb8 => ops.cp(B),
         0xb9 => ops.cp(C),
         0xba => ops.cp(D),
@@ -123,10 +153,18 @@ pub fn visit<O: Operations>(mut ops: O) {
         0xf3 => ops.disable_interrupts(),
 
         // 16-bit arithmetic group
+        0x09 => ops.add16(HL, BC),
+        0x19 => ops.add16(HL, DE),
+        0x29 => ops.add16(HL, HL),
+        0x39 => ops.add16(HL, SP),
         0x03 => ops.inc16(BC),
         0x13 => ops.inc16(DE),
         0x23 => ops.inc16(HL),
         0x33 => ops.inc16(SP),
+        0x0b => ops.dec16(BC),
+        0x1b => ops.dec16(DE),
+        0x2b => ops.dec16(HL),
+        0x3b => ops.dec16(SP),
 
         // jump and call group
         0xc3 => ops.jump(Address::Direct, ()),

@@ -117,6 +117,7 @@ impl Src16 for Immediate16 {
 pub enum Address {
     Direct,
     // Relative,
+    ImmediateExtended,
 
     ZeroPage,
 
@@ -134,6 +135,7 @@ impl Address {
         match *self {
             Direct => state.next16(bus),
             ZeroPage => state.next8(bus) as u16,
+            ImmediateExtended => state.next16(bus),
             BC => state.bc(),
             DE => state.de(),
             HL => state.hl(),
@@ -146,6 +148,14 @@ impl Src8 for Address {
         let addr = self.indirect(state, bus);
 
         bus.read8(addr)
+    }
+}
+
+impl Dst8 for Address {
+    fn dst8(&self, state: &mut State, bus: &mut Bus, val: u8) {
+        let addr = self.indirect(state, bus);
+
+        bus.write8(addr, val);
     }
 }
 
